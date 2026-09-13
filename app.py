@@ -1,95 +1,126 @@
 import streamlit as st
 import pickle
 import numpy as np
+import time
 
-# Page Configuration
+# --- PAGE CONFIGURATION ---
 st.set_page_config(
-    page_title="Academic Predictor",
+    page_title="Student Performance Predictor",
     page_icon="🎓",
     layout="centered"
 )
 
-# Custom Styling
+# --- CUSTOM CSS FOR ATTRACTIVE LAYOUT & ANIMATIONS ---
 st.markdown("""
     <style>
+    /* Main Background & Fonts */
     .main {
-        padding: 2rem;
+        background-color: #f8f9fa;
     }
-    .stButton>button {
-        width: 100%;
-        border-radius: 8px;
-        height: 3em;
-        background-color: #FF4B4B;
-        color: white;
-        font-weight: bold;
-        border: none;
-        transition: all 0.3s ease;
-    }
-    .stButton>button:hover {
-        background-color: #FF2B2B;
-        transform: translateY(-2px);
-    }
-    .prediction-card {
-        padding: 20px;
-        background-color: #f0f2f6;
-        border-radius: 10px;
+    
+    /* Title styling */
+    .title-text {
         text-align: center;
+        color: #1E3A8A;
+        font-family: 'Helvetica Neue', sans-serif;
+        font-weight: 700;
+        margin-bottom: 5px;
+    }
+    .subtitle-text {
+        text-align: center;
+        color: #4B5563;
+        font-size: 1.1rem;
+        margin-bottom: 25px;
+    }
+
+    /* Result Card Styling */
+    .result-card {
+        padding: 20px;
+        border-radius: 12px;
+        text-align: center;
+        font-size: 1.8rem;
+        font-weight: bold;
+        color: white;
         margin-top: 20px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        animation: fadeIn 0.8s ease-in-out;
+    }
+    .pass-card {
+        background: linear-gradient(135deg, #10B981, #059669);
+    }
+    .fail-card {
+        background: linear-gradient(135deg, #EF4444, #DC2626);
+    }
+
+    /* Keyframe animation for result display */
+    @keyframes fadeIn {
+        0% { opacity: 0; transform: translateY(20px); }
+        100% { opacity: 1; transform: translateY(0); }
     }
     </style>
 """, unsafe_allow_html=True)
 
-# Load Trained Model
+# --- LOAD MODEL ---
 @st.cache_resource
 def load_model():
-    with open('model.pkl', 'rb') as file:
-        return pickle.load(file)
+    with open("model.pkl", "rb") as file:
+        model = pickle.load(file)
+    return model
 
-model = load_model()
+try:
+    model = load_model()
+except Exception as e:
+    st.error(f"Error loading `model.pkl`: {e}")
+    st.stop()
 
-# Title and Subtitle
-st.title("🎓 Academic Performance Classifier")
-st.write("Enter the student's scores across subjects to predict the classification result.")
-
+# --- HEADER SECTION ---
+st.markdown("<h1 class='title-text'>🎓 Student Performance Predictor</h1>", unsafe_allow_html=True)
+st.markdown("<p class='subtitle-text'>Enter marks for each subject to predict the final Pass/Fail status.</p>", unsafe_allow_html=True)
 st.divider()
 
-# Input Form
-with st.form("prediction_form"):
-    st.subheader("Subject Marks")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        hindi = st.number_input("Hindi Marks", min_value=0.0, max_value=100.0, value=75.0, step=1.0)
-        english = st.number_input("English Marks", min_value=0.0, max_value=100.0, value=80.0, step=1.0)
-        science = st.number_input("Science Marks", min_value=0.0, max_value=100.0, value=70.0, step=1.0)
-        maths = st.number_input("Maths Marks", min_value=0.0, max_value=100.0, value=85.0, step=1.0)
+# --- INPUT FORM ---
+st.subheader("📊 Subject Marks")
 
-    with col2:
-        history = st.number_input("History Marks", min_value=0.0, max_value=100.0, value=65.0, step=1.0)
-        geography = st.number_input("Geography Marks", min_value=0.0, max_value=100.0, value=72.0, step=1.0)
+col1, col2 = st.columns(2)
+
+with col1:
+    hindi = st.number_input("Hindi Marks", min_value=0.0, max_value=100.0, value=65.0, step=1.0)
+    english = st.number_input("English Marks", min_value=0.0, max_value=100.0, value=70.0, step=1.0)
+    science = st.number_input("Science Marks", min_value=0.0, max_value=100.0, value=60.0, step=1.0)
+
+with col2:
+    maths = st.number_input("Maths Marks", min_value=0.0, max_value=100.0, value=75.0, step=1.0)
+    history = st.number_input("History Marks", min_value=0.0, max_value=100.0, value=68.0, step=1.0)
+    geography = st.number_input("Geography Marks", min_value=0.0, max_value=100.0, value=72.0, step=1.0)
+
+# Automatically compute total marks as expected by your model
+total = hindi + english + science + maths + history + geography
+st.info(f"**Calculated Total Marks:** {total:.2f} / 600.00")
+
+# --- PREDICTION SECTION ---
+st.markdown("<br>", unsafe_allow_html=True)
+if st.button("🚀 Predict Result", use_container_width=True, type="primary"):
+    
+    # Animated Loading State
+    with st.spinner("Analyzing performance data..."):
+        time.sleep(1)  # Brief visual pause for smooth transition
         
-        # Calculate Total automatically
-        calculated_total = hindi + english + science + maths + history + geography
-        total = st.number_input("Total Marks", value=calculated_total, disabled=True)
+        # Prepare feature vector matching feature_names_in_:
+        # ['Hindi', 'English', 'Science', 'Maths', 'History', 'Geograpgy', 'Total']
+        features = np.array([[hindi, english, science, maths, history, geography, total]])
+        
+        prediction = model.predict(features)[0]
 
-    submit_button = st.form_submit_button("🔮 Predict Result")
-
-# Prediction Trigger
-if submit_button:
-    with st.spinner("Processing input and running model inference..."):
-        # Features array corresponding to model trained inputs
-        input_data = np.array([[hindi, english, science, maths, history, geography, calculated_total]])
-        prediction = model.predict(input_data)[0]
-    
-    # Visual Effects & Display Result
-    st.balloons()
-    
-    st.markdown(f"""
-        <div class="prediction-card">
-            <h3>Prediction Outcome</h3>
-            <h1 style="color: #FF4B4B; margin: 0;">Class {prediction}</h1>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    st.success("Inference completed successfully!")
+    # --- DISPLAY ANIMATED RESULT ---
+    if prediction == 1 or str(prediction).lower() == 'pass':
+        st.balloons()
+        st.markdown(
+            "<div class='result-card pass-card'>🎉 Result: PASSED</div>", 
+            unsafe_allow_html=True
+        )
+    else:
+        st.snow()
+        st.markdown(
+            "<div class='result-card fail-card'>⚠️ Result: FAILED</div>", 
+            unsafe_allow_html=True
+        )
